@@ -94,37 +94,6 @@ prompt_target_users() {
     done
 }
 
-install_wallpaper_agent() {
-    local target_user="$1"
-    local image_path="$2"
-    local desktoppr_path
-    desktoppr_path="$(command -v desktoppr)"
-    local agent_dir="/Users/$target_user/Library/LaunchAgents"
-    local agent_plist="$agent_dir/io.atherion.setwallpaper.plist"
-
-    mkdir -p "$agent_dir"
-    cat > "$agent_plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>io.atherion.setwallpaper</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$desktoppr_path</string>
-        <string>$image_path</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-EOF
-    chown "$target_user:staff" "$agent_dir" "$agent_plist"
-    chmod 644 "$agent_plist"
-    print_info "'$target_user' is not logged in — LaunchAgent installed; wallpaper will apply at next login."
-}
-
 apply_wallpaper_for_user() {
     local target_user="$1"
     local image_path="$2"
@@ -146,13 +115,13 @@ apply_wallpaper_for_user() {
                 return 1
             }
         else
-            # Try running desktoppr as the user directly — works on Ventura (file-system pref write,
-            # no WindowManager needed). Fails on Sonoma+ where WallpaperKit requires an active session.
+            # Run desktoppr as the target user — writes their preferences without needing an active GUI
+            # session on Ventura. May fail on Sonoma+ where WallpaperKit requires a running WindowManager.
             if sudo -u "$target_user" desktoppr "$image_path" >/dev/null 2>&1; then
                 print_info "'$target_user' is not logged in — wallpaper preference written; applies at next login."
             else
-                # Sonoma+ fallback: drop a LaunchAgent that runs desktoppr the moment they log in.
-                install_wallpaper_agent "$target_user" "$image_path" || return 1
+                print_warn "'$target_user' is not logged in. Could not set wallpaper (Sonoma+ requires an active session). Log them in and re-run."
+                return 1
             fi
         fi
         return 0
