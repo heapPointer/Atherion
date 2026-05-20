@@ -5,6 +5,9 @@ set -euo pipefail
 WALLPAPER_URL="https://wall-r2.tasw.qzz.io/mac.png"
 WALLPAPER_URL_FALLBACK="https://wall-r2.tasw.qzz.io/mac.png"
 
+# Persistent on-disk location — desktoppr records this path, so it must not be deleted.
+WALLPAPER_DEST="/Library/Desktop Pictures/atherion-wallpaper.png"
+
 SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)" || SCRIPT_DIR=""
 if [[ -n "$SCRIPT_DIR" && -r "$SCRIPT_DIR/scripts/lib/core/ui.sh" ]]; then
     # shellcheck disable=SC1090
@@ -112,12 +115,14 @@ apply_wallpaper_for_user() {
                 return 1
             }
         else
-            # desktoppr v0.4+ supports --user when run as root for users without an active session.
-            desktoppr --user "$target_user" "$image_path" >/dev/null 2>&1 || {
-                print_warn "'$target_user' is not logged in and desktoppr --user failed. Log them in and re-run."
+            # Run desktoppr as the target user — writes their preferences without needing an active GUI
+            # session on Ventura. May fail on Sonoma+ where WallpaperKit requires a running WindowManager.
+            if sudo -u "$target_user" desktoppr "$image_path" >/dev/null 2>&1; then
+                print_info "'$target_user' is not logged in — wallpaper preference written; applies at next login."
+            else
+                print_warn "'$target_user' is not logged in. Could not set wallpaper (Sonoma+ requires an active session). Log them in and re-run."
                 return 1
-            }
-            print_info "'$target_user' is not logged in — wallpaper preference written; applies at next login."
+            fi
         fi
         return 0
     fi
@@ -167,7 +172,10 @@ main() {
         print_err "Failed to download wallpaper from both URLs."
         exit 1
     fi
-    print_ok "Wallpaper downloaded."
+
+    cp "$tmp_image" "$WALLPAPER_DEST"
+    chmod 644 "$WALLPAPER_DEST"
+    print_ok "Wallpaper saved to $WALLPAPER_DEST."
 
     local users_list
     users_list="$(list_local_users)"
@@ -190,7 +198,7 @@ main() {
     local failed=0
     while IFS= read -r target_user; do
         [[ -n "$target_user" ]] || continue
-        if apply_wallpaper_for_user "$target_user" "$tmp_image"; then
+        if apply_wallpaper_for_user "$target_user" "$WALLPAPER_DEST"; then
             print_ok "Wallpaper set for: $target_user"
         else
             failed=1
