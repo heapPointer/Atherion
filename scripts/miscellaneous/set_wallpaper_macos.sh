@@ -163,9 +163,8 @@ download_wallpaper() {
 main() {
     require_root
 
-    local tmp_image
     tmp_image="$(mktemp /tmp/atherion-wallpaper.XXXXXX.png)"
-    trap 'rm -f "$tmp_image"' EXIT
+    trap 'rm -f "${tmp_image:-}"' EXIT
 
     print_info "Downloading wallpaper..."
     if ! download_wallpaper "$tmp_image"; then
