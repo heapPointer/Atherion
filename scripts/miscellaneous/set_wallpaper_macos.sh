@@ -173,6 +173,7 @@ main() {
         exit 1
     fi
 
+    mkdir -p "$(dirname "$WALLPAPER_DEST")"
     cp "$tmp_image" "$WALLPAPER_DEST"
     chmod 644 "$WALLPAPER_DEST"
     print_ok "Wallpaper saved to $WALLPAPER_DEST."
