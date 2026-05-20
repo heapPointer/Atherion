@@ -645,8 +645,14 @@ ensure_runtime_dependencies() {
                     print_warn "osx-cpu-temp install failed; CPU temp will use powermetrics fallback"
             fi
         fi
+        if ! brew_cmd list --formula desktoppr >/dev/null 2>&1; then
+            print_info "Installing wallpaper utility: desktoppr"
+            network_stage_update "desktoppr" "--" "estimating" "phase=brew-install"
+            HOMEBREW_NO_AUTO_UPDATE=1 brew_cmd install desktoppr >/dev/null 2>&1 || \
+                print_warn "desktoppr install failed; set_wallpaper_macos.sh will use legacy fallback"
+        fi
     else
-        print_warn "Homebrew unavailable, skipping btop/osx-cpu-temp install."
+        print_warn "Homebrew unavailable, skipping btop/osx-cpu-temp/desktoppr install."
     fi
 
     [[ "$had_error" -eq 0 ]]
