@@ -414,6 +414,16 @@ brew_is_healthy() {
     return 1
 }
 
+brew_cask_is_installed() {
+    local token="$1"
+    brew_cmd list --cask "$token" >/dev/null 2>&1
+}
+
+brew_formula_is_installed() {
+    local token="$1"
+    brew_cmd list --formula "$token" >/dev/null 2>&1
+}
+
 repair_homebrew_shallow_clones() {
     local brew_repo
     local core_tap
@@ -619,7 +629,7 @@ ensure_runtime_dependencies() {
 
     # Install aria2 first so Homebrew uses it for parallel formula downloads.
     if brew_is_healthy; then
-        if ! brew_cmd list --formula aria2 >/dev/null 2>&1; then
+        if ! brew_formula_is_installed aria2; then
             print_info "Installing download accelerator: aria2"
             network_stage_update "aria2" "--" "estimating" "phase=brew-install"
             HOMEBREW_NO_AUTO_UPDATE=1 brew_cmd install aria2 >/dev/null 2>&1 || \
@@ -629,7 +639,7 @@ ensure_runtime_dependencies() {
 
     # Install monitoring stack used by sysmon wrapper (optional — failures are non-fatal).
     if brew_is_healthy; then
-        if ! brew_cmd list --formula btop >/dev/null 2>&1; then
+        if ! brew_formula_is_installed btop; then
             print_info "Installing monitoring dependency: btop"
             network_stage_update "btop" "--" "estimating" "phase=brew-install"
             HOMEBREW_NO_AUTO_UPDATE=1 brew_cmd install btop >/dev/null 2>&1 || \
@@ -638,14 +648,14 @@ ensure_runtime_dependencies() {
 
         # osx-cpu-temp uses the Intel SMC interface — not available on Apple Silicon.
         if [[ "$(uname -m)" != "arm64" ]]; then
-            if ! brew_cmd list --formula osx-cpu-temp >/dev/null 2>&1; then
+            if ! brew_formula_is_installed osx-cpu-temp; then
                 print_info "Installing monitoring dependency: osx-cpu-temp"
                 network_stage_update "osx-cpu-temp" "--" "estimating" "phase=brew-install"
                 HOMEBREW_NO_AUTO_UPDATE=1 brew_cmd install osx-cpu-temp >/dev/null 2>&1 || \
                     print_warn "osx-cpu-temp install failed; CPU temp will use powermetrics fallback"
             fi
         fi
-        if ! brew_cmd list --formula desktoppr >/dev/null 2>&1; then
+        if ! brew_formula_is_installed desktoppr; then
             print_info "Installing wallpaper utility: desktoppr"
             network_stage_update "desktoppr" "--" "estimating" "phase=brew-install"
             HOMEBREW_NO_AUTO_UPDATE=1 brew_cmd install desktoppr >/dev/null 2>&1 || \

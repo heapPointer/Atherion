@@ -15,6 +15,11 @@ should_skip_direct_install() {
 
     installed_ver="$(get_app_version "$app_path")"
 
+    if [[ "$installed_ver" == "unknown" ]]; then
+        print_warn "$display_name installed but version unreadable. Skipping reinstall."
+        return 0
+    fi
+
     if [[ -z "$supported_ver" || "$supported_ver" == "unknown" ]]; then
         print_info "$display_name installed. Version: $installed_ver"
         print_ok "$display_name already installed. Skipping reinstall."
@@ -692,20 +697,40 @@ reinstall_cask_app() {
         return 1
     fi
 
-    # Fast path: Check if app is already installed locally FIRST
-    installed_path="$(resolve_installed_app_path "$app_path")"
+    # Fast path tier 1: brew is authoritative — if it lists the cask as installed, trust it
+    if brew_cask_is_installed "$token"; then
+        echo "Checking installed version" > "$stage_file" 2>/dev/null || true
+        installed_path="$(resolve_installed_app_path "$app_path")"
+        installed_ver="$(get_app_version "${installed_path:-$app_path}")"
+        echo "Checking supported version" > "$stage_file" 2>/dev/null || true
+        supported_ver="$(get_brew_cask_version "$token")"
+        if [[ "$installed_ver" == "unknown" || "$supported_ver" == "unknown" ]] \
+            || versions_match_latest "$installed_ver" "$supported_ver"; then
+            print_ok "$display_name already installed via Homebrew ($installed_ver). Skipping reinstall."
+            [[ -n "$installed_path" ]] && record_cask_lock "$token" "$installed_path" || true
+            return 0
+        fi
+        print_info "$display_name ($installed_ver) differs from supported ($supported_ver). Upgrading."
+    fi
+
+    # Fast path tier 2: filesystem fallback for sideloaded installs not known to brew
+    if [[ -z "$installed_path" ]]; then
+        installed_path="$(resolve_installed_app_path "$app_path")"
+    fi
     if [[ -n "$installed_path" ]]; then
         echo "Checking installed version" > "$stage_file" 2>/dev/null || true
         installed_ver="$(get_app_version "$installed_path")"
-        if [[ -n "$installed_ver" && "$installed_ver" != "unknown" ]]; then
+        if [[ -z "$supported_ver" || "$supported_ver" == "unknown" ]]; then
             echo "Checking supported version" > "$stage_file" 2>/dev/null || true
             supported_ver="$(get_brew_cask_version "$token")"
-            if [[ "$supported_ver" != "unknown" ]] && versions_match_latest "$installed_ver" "$supported_ver"; then
-                print_ok "$display_name already at latest supported version ($installed_ver). Skipping reinstall."
-                record_cask_lock "$token" "$installed_path" || true
-                return 0
-            fi
         fi
+        if [[ "$installed_ver" == "unknown" || "$supported_ver" == "unknown" ]] \
+            || versions_match_latest "$installed_ver" "$supported_ver"; then
+            print_ok "$display_name already installed ($installed_ver). Skipping reinstall."
+            record_cask_lock "$token" "$installed_path" || true
+            return 0
+        fi
+        print_info "$display_name ($installed_ver) differs from supported ($supported_ver). Reinstalling."
     fi
 
     # Slow path: App not found or version mismatch, need to install
