@@ -45,6 +45,9 @@ configure_power_management() {
         had_error=1
     fi
 
+    # Clear any one-time scheduled events (pmset schedule) left by previous tools.
+    sudo pmset schedule cancelall 2>/dev/null || true
+
     if ! sudo pmset repeat wakeorpoweron MTWRFS 07:00:00 shutdown MTWRFS 21:30:00; then
         print_warn "Failed to set wake/shutdown schedule."
         had_error=1
