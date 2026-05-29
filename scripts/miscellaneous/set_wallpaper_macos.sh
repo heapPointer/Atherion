@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Ensure Homebrew-installed binaries (e.g. desktoppr) are in PATH when this
+# script is invoked via "sudo bash", which inherits a minimal environment.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 WALLPAPER_URL="https://wall-r2.tasw.qzz.io/mac.png"
 WALLPAPER_URL_FALLBACK="https://wall-r2.tasw.qzz.io/mac.png"
 
