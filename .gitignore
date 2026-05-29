@@ -1,5 +1,6 @@
 .env
 .*
+!.gitattributes
 /PKG/
 AGENTS.md
 CLAUDE.md

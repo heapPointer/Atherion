@@ -1,0 +1,2 @@
+# Force LF line endings for shell scripts regardless of OS/git autocrlf setting
+*.sh text eol=lf
